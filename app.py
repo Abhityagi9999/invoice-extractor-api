@@ -151,6 +151,8 @@ def _process_pdfs_background(task_id, pdf_paths):
 
                 if is_bc:
                     result = parse_broadcaster_invoice(pdf_path)
+                    if not result:
+                        raise ValueError("Unknown broadcaster format or parsing error")
                     parsed_broadcaster.append(result)
                     file_statuses[-1] = {
                         'name':   filename,
@@ -162,6 +164,8 @@ def _process_pdfs_background(task_id, pdf_paths):
                                 filename, len(result.spots), result.format_type)
                 else:
                     result = parse_invoice(pdf_path)
+                    if not result:
+                        raise ValueError("Could not parse agency invoice")
                     parsed_agency.append(result)
                     file_statuses[-1] = {
                         'name':   filename,
