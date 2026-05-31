@@ -118,12 +118,8 @@ def parse_broadcaster_invoice(pdf_path: str) -> Optional[ParsedBroadcasterInvoic
 
     # Find the parser script in the organized folder
     # Path: Broadcaster_Invoices_Organized/<FORMAT>/parser.py
-    workspace_dir = r"c:\Users\asus\OneDrive\Desktop\New folder (6)"
-    organized_dir = r"C:\Users\asus\Downloads\Sustenance_Redmi_Note_13_May24\Sustenance_Redmi_Note_13_May24\Broadcaster_Invoices_Organized"
-    
-    # Fallback to local workspace if we also moved the organized folder here
-    if os.path.exists(os.path.join(workspace_dir, "Broadcaster_Invoices_Organized")):
-        organized_dir = os.path.join(workspace_dir, "Broadcaster_Invoices_Organized")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    organized_dir = os.path.join(base_dir, "Broadcaster_Invoices_Organized")
         
     script_path = os.path.join(organized_dir, format_type.upper(), "parser.py")
     
