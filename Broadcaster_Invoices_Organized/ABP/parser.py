@@ -54,7 +54,7 @@ def parse(pages_text: List[str], full_text: str) -> ParsedBroadcasterInvoice:
                 spot.date = m.group(4)
                 spot.day = days_short.get(m.group(3), m.group(3))
                 spot.air_time = m.group(5).strip()
-                spot.program = m.group(2)
+                spot.program = ""  # ABP doesn't provide program names
 
                 # Extract duration (:20 format)
                 dur_m = re.search(r':(\d{2})\s', ls)
