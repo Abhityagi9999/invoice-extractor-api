@@ -2,7 +2,7 @@ import re
 from typing import List, Optional
 import sys
 import os
-sys.path.append('c:/Users/asus/OneDrive/Desktop/New folder (6)')
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 from broadcaster_types import ParsedBroadcasterInvoice, BroadcasterSpot, _extract, _clean, _clean_air_time, _parse_num, _get_day_from_date
 
 def parse(pages_text: List[str], full_text: str) -> Optional[ParsedBroadcasterInvoice]:
@@ -55,7 +55,8 @@ def parse(pages_text: List[str], full_text: str) -> Optional[ParsedBroadcasterIn
             spot.date = date_str
             spot.day = _get_day_from_date(date_str)
             spot.air_time = _clean_air_time(time_band)
-            spot.program = time_band # Since it's a time band, we'll use it as program context
+            spot.tp = time_band
+            spot.program = ""
             spot.spot_copy = creative
             spot.brand = "XIAOMI"
             spot.duration = creative_dur
