@@ -56,8 +56,8 @@ def parse(pages_text: List[str], full_text: str) -> ParsedBroadcasterInvoice:
                 spot.air_time = m.group(5).strip()
                 spot.program = ""  # ABP doesn't provide program names
 
-                # Extract duration (:20 format)
-                dur_m = re.search(r':(\d{2})\s', ls)
+                # Extract duration (:20 format) - ensure space before to not match time minutes
+                dur_m = re.search(r'\s:(\d{2})\s', ls)
                 spot.duration = int(dur_m.group(1)) if dur_m else 20
 
                 # Extract caption/Ad-ID
