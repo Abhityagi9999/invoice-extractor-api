@@ -41,14 +41,39 @@ def parse(pages_text: List[str], full_text: str) -> ParsedBroadcasterInvoice:
                 spot.brand = m.group(2)
                 
                 cap_prog = m.group(3)
+                
+                # Known Lokmat programs to check against interleaved strings
+                KNOWN_PROGRAMS = [
+                    "MAHARASHTRA UNLIMITED",
+                    "25 MINUTE 50 BATMYA",
+                    "MAHABHARAT 2024",
+                    "MAHABHARAT",
+                    "BATMYA 36 JILLAYANCHI",
+                    "MAHARASHTRACHI KHABARBAT",
+                    "DIVASBHARACHYA BATMYA",
+                    "SUPERFAST"
+                ]
+
                 if "SUSTENANCE" in cap_prog:
                     parts = cap_prog.split("SUSTENANCE")
                     spot.spot_copy = _clean(parts[0] + " SUSTENANCE")
-                    spot.program = _clean(parts[1])
+                    raw_prog = _clean(parts[1])
                 else:
                     spot.spot_copy = cap_prog
-                    spot.program = "News18 Lokmat Ad"
-                    
+                    raw_prog = cap_prog
+
+                # Use subsequence matching to extract the real program name from interleaved text
+                matched_prog = None
+                s_clean = raw_prog.replace(" ", "").upper()
+                for prog in KNOWN_PROGRAMS:
+                    prog_clean = prog.replace(" ", "").upper()
+                    it = iter(s_clean)
+                    if all(c in it for c in prog_clean):
+                        matched_prog = prog
+                        break
+                
+                spot.program = matched_prog if matched_prog else ("News18 Lokmat Ad" if "SUSTENANCE" not in cap_prog else raw_prog)
+                
                 spot.tp = ""
                 spot.air_time = m.group(4)
                 spot.duration = int(m.group(5))
