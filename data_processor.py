@@ -355,7 +355,7 @@ BROADCASTER_COLUMNS = [
     'PO Number',
     'Invoice Number',
     'Invoice Date',
-    'TP (Telecast Program)',
+    'Telecast Time Band',
     'Program',
     'Date',
     'Day',
@@ -391,7 +391,7 @@ def build_broadcaster_data(parsed_invoices: List[ParsedBroadcasterInvoice]) -> p
                 'PO Number':                h.po_number,
                 'Invoice Number':           h.invoice_number,
                 'Invoice Date':             h.invoice_date,
-                'TP (Telecast Program)':    spot.tp,
+                'Telecast Time Band':       spot.tp,
                 'Program':                  spot.program,
                 'Date':                     spot.date,
                 'Day':                      spot.day,
@@ -408,6 +408,11 @@ def build_broadcaster_data(parsed_invoices: List[ParsedBroadcasterInvoice]) -> p
 
     df = pd.DataFrame(rows, columns=BROADCASTER_COLUMNS)
     df = df.sort_values(['Invoice Number', 'Channel Name/STN', 'Date']).reset_index(drop=True)
+
+    # Remove 'Telecast Time Band' column if ALL values are empty
+    if 'Telecast Time Band' in df.columns and df['Telecast Time Band'].replace('', pd.NA).isna().all():
+        df = df.drop(columns=['Telecast Time Band'])
+
     return df
 
 
@@ -419,7 +424,7 @@ def broadcaster_spots_to_dicts(inv: ParsedBroadcasterInvoice) -> List[Dict]:
         rows.append({
             'Invoice Number':           h.invoice_number,
             'Channel Name':             h.channel_name,
-            'TP (Telecast Program)':    spot.tp,
+            'Telecast Time Band':       spot.tp,
             'Program':                  spot.program,
             'Date':                     spot.date,
             'Day':                      spot.day,

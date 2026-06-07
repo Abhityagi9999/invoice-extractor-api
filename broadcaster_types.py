@@ -45,7 +45,7 @@ class BroadcasterHeader:
 @dataclass
 class BroadcasterSpot:
     """Stores individual spot/ad record from broadcaster invoice."""
-    tp: str = ""            # Telecast Program / time slot / booking type
+    tp: str = ""            # Telecast Time Band / time slot
     program: str = ""       # Actual show name
     date: str = ""
     day: str = ""
