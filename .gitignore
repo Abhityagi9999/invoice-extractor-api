@@ -1,0 +1,18 @@
+# PDF files (sample invoices - not needed on server)
+*.pdf
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Uploads and output folders
+uploads/
+output/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
