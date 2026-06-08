@@ -410,6 +410,32 @@ def build_broadcaster_data(parsed_invoices: List[ParsedBroadcasterInvoice]) -> p
     df = df.sort_values(['Invoice Number', 'Channel Name/STN', 'Date']).reset_index(drop=True)
     return df
 
+PO_COLUMNS = [
+    'Advertiser Name', 'PO Number', 'PO Date', 'Agency Name', 
+    'Brand', 'Description', 'PO Amount (incl Tax)'
+]
+
+def build_po_data(parsed_po_invoices: List) -> pd.DataFrame:
+    """Build a DataFrame from parsed PO invoices."""
+    rows = []
+    for po in parsed_po_invoices:
+        rows.append({
+            'Advertiser Name': po.advertiser_name,
+            'PO Number': po.po_number,
+            'PO Date': po.po_date,
+            'Agency Name': po.agency_name,
+            'Brand': po.brand,
+            'Description': po.description,
+            'PO Amount (incl Tax)': po.po_amount
+        })
+        
+    if not rows:
+        return pd.DataFrame(columns=PO_COLUMNS)
+        
+    df = pd.DataFrame(rows, columns=PO_COLUMNS)
+    return df
+
+
 
 def broadcaster_spots_to_dicts(inv: ParsedBroadcasterInvoice) -> List[Dict]:
     """Used by app.py for UI preview — individual spot-level rows with all 18 fields."""
@@ -578,6 +604,22 @@ def export_to_excel(dfs: Dict[str, pd.DataFrame], output_path: str) -> str:
             _auto_width(ws, df_bc)
             _freeze_filter(ws, df_bc)
             ws.sheet_properties.tabColor = '5B2C6F'
+            ws.sheet_view.showGridLines  = False
+            sheets_written += 1
+
+        # PO Details sheet
+        df_po = dfs.get('po', pd.DataFrame())
+        if df_po is not None and len(df_po) > 0:
+            sheet_name = 'PO Details'
+            df_po.to_excel(writer, sheet_name=sheet_name, index=False)
+            ws = writer.sheets[sheet_name]
+            _style_header(ws, len(df_po.columns), '2E86C1') # Blue color
+            _style_data(ws, len(df_po), len(df_po.columns))
+            # Optional: _add_total_row(ws, df_po, len(df_po.columns))
+            _format_numbers(ws, df_po)
+            _auto_width(ws, df_po)
+            _freeze_filter(ws, df_po)
+            ws.sheet_properties.tabColor = '2E86C1'
             ws.sheet_view.showGridLines  = False
             sheets_written += 1
 

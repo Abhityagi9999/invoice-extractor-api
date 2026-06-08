@@ -14,6 +14,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 
 from pdf_parser import parse_invoice
 from broadcaster_router import parse_broadcaster_invoice, is_broadcaster_invoice
+from po_parser import parse_po_invoice, is_po_invoice
 from data_processor import (
     process_multiple_invoices,
     export_to_excel,
@@ -21,6 +22,7 @@ from data_processor import (
     invoice_to_summary_dict,
     spots_to_dicts,
     build_broadcaster_data,
+    build_po_data,
     broadcaster_to_summary_dict,
     broadcaster_spots_to_dicts,
     build_invoice_summary_sheet,
@@ -119,6 +121,7 @@ def _process_pdfs_background(task_id, pdf_paths):
     total = len(pdf_paths)
     parsed_agency       = []
     parsed_broadcaster  = []
+    parsed_po           = []
     file_statuses       = []
 
     try:
@@ -148,8 +151,21 @@ def _process_pdfs_background(task_id, pdf_paths):
             try:
                 # Auto-detect invoice type
                 is_bc = is_broadcaster_invoice(pdf_path)
+                is_po = False if is_bc else is_po_invoice(pdf_path)
 
-                if is_bc:
+                if is_po:
+                    result = parse_po_invoice(pdf_path)
+                    if not result:
+                        raise ValueError("Unknown PO format or parsing error")
+                    parsed_po.append(result)
+                    file_statuses[-1] = {
+                        'name':   filename,
+                        'status': 'done',
+                        'spots':  1,
+                        'type':   'Purchase Order',
+                    }
+                    logger.info('Parsed PO %s → PO Number: %s', filename, result.po_number)
+                elif is_bc:
                     result = parse_broadcaster_invoice(pdf_path)
                     if not result:
                         raise ValueError("Unknown broadcaster format or parsing error")
@@ -179,7 +195,7 @@ def _process_pdfs_background(task_id, pdf_paths):
                 file_statuses[-1] = {'name': filename, 'status': 'error', 'error': str(exc)}
                 logger.error('Error parsing %s: %s', filename, exc)
 
-        if not parsed_agency and not parsed_broadcaster:
+        if not parsed_agency and not parsed_broadcaster and not parsed_po:
             _update_task(task_id, status='error',
                          error='Could not parse any PDF files.')
             return
@@ -201,6 +217,10 @@ def _process_pdfs_background(task_id, pdf_paths):
         # Broadcaster data
         if parsed_broadcaster:
             dfs['broadcaster'] = build_broadcaster_data(parsed_broadcaster)
+            
+        # PO data
+        if parsed_po:
+            dfs['po'] = build_po_data(parsed_po)
 
         # Export combined Excel
         timestamp      = datetime.now().strftime('%Y%m%d_%H%M%S')
