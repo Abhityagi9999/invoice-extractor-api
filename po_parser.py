@@ -1,17 +1,15 @@
 import re
 import pdfplumber
-import PyPDF2
 from typing import Optional
 from po_types import ParsedPOInvoice
 
 def is_po_invoice(pdf_path: str) -> bool:
     """Quickly check if the PDF is a Purchase Order."""
     try:
-        with open(pdf_path, 'rb') as f:
-            reader = PyPDF2.PdfReader(f)
-            if not reader.pages:
+        with pdfplumber.open(pdf_path) as pdf:
+            if not pdf.pages:
                 return False
-            page1_text = reader.pages[0].extract_text() or ""
+            page1_text = pdf.pages[0].extract_text() or ""
             return "PURCHASE ORDER" in page1_text.upper()
     except Exception:
         return False
