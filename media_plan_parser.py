@@ -81,9 +81,9 @@ def parse_media_plan(file_path: str) -> Optional[ParsedMediaPlan]:
             elif isinstance(col_name, str):
                 name_upper = col_name.strip().upper()
                 if 'CHANNEL' in name_upper: col_map['channel'] = col_idx
-                elif 'PROGRAMME' in name_upper: col_map['programme'] = col_idx
-                elif 'DAYS' in name_upper: col_map['days'] = col_idx
-                elif 'TIMEBAND' in name_upper or 'TIME BAND' in name_upper: col_map['time_band'] = col_idx
+                elif 'PROGRAMME' in name_upper or 'PROGRAM' in name_upper: col_map['programme'] = col_idx
+                elif 'DAYS' in name_upper or name_upper == 'DAY': col_map['days'] = col_idx
+                elif 'TIMEBAND' in name_upper or 'TIME BAND' in name_upper or name_upper == 'TIME': col_map['time_band'] = col_idx
                 elif 'PT/NPT' in name_upper or 'PT / NPT' in name_upper: col_map['pt_npt'] = col_idx
                 elif 'NETT RATE' in name_upper or 'NET RATE' in name_upper: col_map['net_rate'] = col_idx
                 elif 'CAPTION' in name_upper: col_map['caption'] = col_idx
