@@ -41,8 +41,13 @@ def parse_po_invoice(pdf_path: str) -> Optional[ParsedPOInvoice]:
         vendor = re.search(r'Vendor Code.*?Name\s*:\s*(.+?)(?:\n|$)', full_text, re.DOTALL | re.IGNORECASE)
         result.agency_name = vendor.group(1).strip() if vendor else ""
         
-        buyer = re.search(r'Buyer \(Bill To\):\s*\n.*?(Cipla Health Limited|CIPLA HEALTH[\w\s\/]+)', full_text, re.IGNORECASE)
-        result.advertiser_name = buyer.group(1).strip() if buyer else "Cipla Health Limited"
+        buyer = re.search(r'Buyer \(Bill To\):\s*\n.*?([A-Za-z\s]+Limited|[A-Za-z\s]+Ltd\.?)', full_text, re.IGNORECASE)
+        if buyer and "CIPLA HEALTH" in buyer.group(1).upper():
+            result.advertiser_name = "Cipla Health Limited"
+        elif buyer:
+            result.advertiser_name = buyer.group(1).strip()
+        else:
+            result.advertiser_name = "Cipla Health Limited"
         
         # In case the format differs slightly, have a fallback for description
         desc = re.search(r'Net Item Value\s*\n\d+\s+(.+?)\s+\d+\.\d{3}\s+AU', full_text, re.IGNORECASE)
