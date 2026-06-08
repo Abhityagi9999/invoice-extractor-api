@@ -3,14 +3,39 @@ from typing import Optional, List
 from datetime import datetime
 from media_plan_types import ParsedMediaPlan, MediaPlanRow
 
+def _find_target_sheet_and_header(excel: pd.ExcelFile) -> tuple[Optional[str], Optional[int]]:
+    """Find the sheet that contains the media plan data and the row index of its header."""
+    for sheet in excel.sheet_names:
+        # Ignore sheets that are obviously not plans
+        if 'ESTIMATE' in sheet.upper() or 'BSL' in sheet.upper() or 'DUMP' in sheet.upper() or 'SPOT' in sheet.upper():
+            continue
+            
+        try:
+            df = pd.read_excel(excel, sheet_name=sheet, header=None, nrows=30)
+        except Exception:
+            continue
+            
+        # Look for header row
+        for idx in range(min(30, len(df))):
+            row_strs = [str(x).upper().strip() for x in df.iloc[idx].values if pd.notna(x)]
+            has_channel = any('CHANNEL' in x for x in row_strs)
+            has_prog = any('PROGRAM' in x for x in row_strs)
+            has_time = any('TIME' in x for x in row_strs)
+            
+            # If we see Channel and Programme, it's definitely our table!
+            if has_channel and (has_prog or has_time):
+                return sheet, idx
+                
+    return None, None
+
 def is_media_plan(file_path: str) -> bool:
-    """Check if the file is an Excel file containing a 'Base Plan' sheet."""
+    """Check if the file is an Excel file containing a Media Plan table."""
     if not str(file_path).lower().endswith(('.xlsx', '.xls')):
         return False
     try:
         excel = pd.ExcelFile(file_path)
-        # Check for sheet names that might contain 'Base Plan' (case insensitive, ignoring leading/trailing spaces)
-        return any('BASE PLAN' in sheet.upper() for sheet in excel.sheet_names)
+        sheet, header_idx = _find_target_sheet_and_header(excel)
+        return sheet is not None
     except Exception:
         return False
 
@@ -18,14 +43,18 @@ def parse_media_plan(file_path: str) -> Optional[ParsedMediaPlan]:
     """Parse the Base Plan sheet of a Media Plan Excel file."""
     try:
         excel = pd.ExcelFile(file_path)
-        base_plan_sheet = next(sheet for sheet in excel.sheet_names if 'BASE PLAN' in sheet.upper())
         
+        target_sheet, header_row_idx = _find_target_sheet_and_header(excel)
+        if not target_sheet:
+            print("Could not find any sheet with a Media Plan table structure.")
+            return None
+            
         # Read without headers to locate the header row manually
-        df = pd.read_excel(excel, sheet_name=base_plan_sheet, header=None)
+        df = pd.read_excel(excel, sheet_name=target_sheet, header=None)
         
         result = ParsedMediaPlan()
         
-        # Extract Client and Brand from the first 5 rows (Col 0 usually contains the label, Col 1 the value)
+        # Extract Client and Brand from the first 5 rows
         for i in range(min(5, len(df))):
             label = str(df.iloc[i, 0]).strip().upper()
             val = str(df.iloc[i, 1]).strip()
@@ -37,17 +66,6 @@ def parse_media_plan(file_path: str) -> Optional[ParsedMediaPlan]:
             elif 'BRAND' in label and 'TG' not in label:
                 result.brand_name = val
                 
-        # Find the header row by looking for 'Channel' in the first column
-        header_row_idx = -1
-        for i in range(min(20, len(df))):
-            if str(df.iloc[i, 0]).strip().upper() == 'CHANNEL':
-                header_row_idx = i
-                break
-                
-        if header_row_idx == -1:
-            print("Could not find header row with 'Channel'")
-            return None
-            
         header_row = df.iloc[header_row_idx]
         
         # Map column indices for fixed columns
