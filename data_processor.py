@@ -412,7 +412,7 @@ def build_broadcaster_data(parsed_invoices: List[ParsedBroadcasterInvoice]) -> p
 
 PO_COLUMNS = [
     'Advertiser Name', 'PO Number', 'PO Date', 'Agency Name', 
-    'Brand', 'Description', 'PO Amount (incl Tax)'
+    'Brand', 'Po_Description', 'PO Amount (incl Tax)'
 ]
 
 def build_po_data(parsed_po_invoices: List) -> pd.DataFrame:
@@ -425,7 +425,7 @@ def build_po_data(parsed_po_invoices: List) -> pd.DataFrame:
             'PO Date': po.po_date,
             'Agency Name': po.agency_name,
             'Brand': po.brand,
-            'Description': po.description,
+            'Po_Description': po.description,
             'PO Amount (incl Tax)': po.po_amount
         })
         
