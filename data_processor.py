@@ -337,9 +337,13 @@ def _format_numbers(ws, df: pd.DataFrame, start_row: int = 2):
             if pd.api.types.is_numeric_dtype(df[col]):
                 is_num = True
                 
-        if is_num or any(w in col_str for w in ['Spots', 'Duration', 'spots']):
+        import re
+        is_date_col = bool(re.match(r'^\d{2}-[a-zA-Z]{3}$', col_str))
+        
+        if is_num or any(w in col_str for w in ['Spots', 'Duration', 'spots']) or is_date_col:
             idx = i + 1
-            fmt = integer if any(w in col_str for w in ['Spots', 'Duration', 'spots']) else currency
+            is_int_fmt = any(w in col_str for w in ['Spots', 'Duration', 'spots']) or is_date_col
+            fmt = integer if is_int_fmt else currency
             for r in range(start_row, len(df) + start_row + 1):   # +1 to include total row
                 ws.cell(row=r, column=idx).number_format = fmt
 
@@ -489,7 +493,7 @@ def build_media_plan_data(parsed_media_plans: List) -> pd.DataFrame:
             for d in sorted_dates:
                 val = r.spots_by_date.get(d, 0)
                 date_str = d.strftime('%d-%b')
-                row_dict[date_str] = val if val > 0 else 0
+                row_dict[date_str] = val if val > 0 else ""
                 
             rows.append(row_dict)
             
