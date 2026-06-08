@@ -91,8 +91,28 @@ def parse_media_plan(file_path: str) -> Optional[ParsedMediaPlan]:
                 
             plan_row.channel = str(get_val('channel')).strip()
             plan_row.programme = str(get_val('programme')).strip()
-            plan_row.days = str(get_val('days')).strip()
-            plan_row.time_band = str(get_val('time_band')).strip()
+            days_val = get_val('days')
+            try:
+                d_float = float(days_val)
+                if d_float.is_integer():
+                    plan_row.days = str(int(d_float))
+                else:
+                    plan_row.days = str(round(d_float, 2))
+            except (ValueError, TypeError):
+                plan_row.days = str(days_val).strip()
+            
+            tb_val = get_val('time_band')
+            try:
+                # Try to parse as float and round it to 2 decimal places if it's a number
+                tb_float = float(tb_val)
+                # If it's effectively an integer (e.g., 6.0), format without decimals
+                if tb_float.is_integer():
+                    plan_row.time_band = str(int(tb_float))
+                else:
+                    plan_row.time_band = str(round(tb_float, 2))
+            except (ValueError, TypeError):
+                plan_row.time_band = str(tb_val).strip()
+                
             plan_row.pt_npt = str(get_val('pt_npt')).strip()
             
             rate_val = get_val('net_rate')
