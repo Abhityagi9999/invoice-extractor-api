@@ -278,12 +278,12 @@ def _style_header(ws, num_cols: int, color: str):
     ws.row_dimensions[1].height = 32
 
 
-def _style_data(ws, num_rows: int, num_cols: int):
+def _style_data(ws, num_rows: int, num_cols: int, start_row: int = 2):
     even_fill = PatternFill(start_color=COLORS['row_even'], end_color=COLORS['row_even'], fill_type='solid')
     thin  = Side(style='thin', color='D5D8DC')
     bdr   = Border(left=thin, right=thin, top=thin, bottom=thin)
     align = Alignment(vertical='center', wrap_text=False)
-    for r in range(2, num_rows + 2):
+    for r in range(start_row, num_rows + start_row):
         for c in range(1, num_cols + 1):
             cell = ws.cell(row=r, column=c)
             cell.border    = bdr
@@ -316,30 +316,56 @@ def _add_total_row(ws, df: pd.DataFrame, num_cols: int):
         cell.border = Border(top=thin, bottom=thin)
 
 
-def _format_numbers(ws, df: pd.DataFrame):
+def _format_numbers(ws, df: pd.DataFrame, start_row: int = 2):
     currency = '#,##0.00'
     integer  = '#,##0'
-    numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
-    for col in numeric_cols:
-        idx = list(df.columns).index(col) + 1
-        fmt = integer if any(w in col for w in ['Spots', 'Duration']) else currency
-        for r in range(2, len(df) + 3):   # +3 to include total row
-            ws.cell(row=r, column=idx).number_format = fmt
+    
+    is_multi = isinstance(df.columns, pd.MultiIndex)
+    cols = df.columns
+    
+    for i, col in enumerate(cols):
+        col_str = str(col[0] if is_multi else col)
+        
+        # Determine if it's numeric
+        is_num = False
+        if is_multi:
+            # check the first row of data to see if it's numeric, or just use string matching
+            val = df.iloc[0, i] if len(df) > 0 else None
+            if isinstance(val, (int, float)):
+                is_num = True
+        else:
+            if pd.api.types.is_numeric_dtype(df[col]):
+                is_num = True
+                
+        if is_num or any(w in col_str for w in ['Spots', 'Duration', 'spots']):
+            idx = i + 1
+            fmt = integer if any(w in col_str for w in ['Spots', 'Duration', 'spots']) else currency
+            for r in range(start_row, len(df) + start_row + 1):   # +1 to include total row
+                ws.cell(row=r, column=idx).number_format = fmt
 
 
 def _auto_width(ws, df: pd.DataFrame, min_w=10, max_w=42):
+    is_multi = isinstance(df.columns, pd.MultiIndex)
     for i, col in enumerate(df.columns, 1):
-        h_len    = len(str(col))
-        data_len = int(df[col].astype(str).str.len().max()) if len(df) > 0 else 0
+        if is_multi:
+            h_len = max(len(str(c)) for c in col)
+        else:
+            h_len = len(str(col))
+        
+        try:
+            data_len = int(df.iloc[:, i-1].astype(str).str.len().max()) if len(df) > 0 else 0
+        except:
+            data_len = 0
+            
         width    = max(min_w, min(max(h_len, data_len) + 3, max_w))
         ws.column_dimensions[get_column_letter(i)].width = width
 
 
-def _freeze_filter(ws, df: pd.DataFrame):
-    ws.freeze_panes = 'A2'
+def _freeze_filter(ws, df: pd.DataFrame, header_row: int = 1):
+    ws.freeze_panes = f'A{header_row + 1}'
     last_col = get_column_letter(len(df.columns))
-    last_row = len(df) + 1
-    ws.auto_filter.ref = f'A1:{last_col}{last_row}'
+    last_row = len(df) + header_row
+    ws.auto_filter.ref = f'A{header_row}:{last_col}{last_row}'
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -433,6 +459,44 @@ def build_po_data(parsed_po_invoices: List) -> pd.DataFrame:
         return pd.DataFrame(columns=PO_COLUMNS)
         
     df = pd.DataFrame(rows, columns=PO_COLUMNS)
+    return df
+
+def build_media_plan_data(parsed_media_plans: List) -> pd.DataFrame:
+    """Build a DataFrame from parsed Media Plans."""
+    rows = []
+    
+    all_dates = set()
+    for mp in parsed_media_plans:
+        for r in mp.rows:
+            all_dates.update(r.spots_by_date.keys())
+    
+    sorted_dates = sorted(list(all_dates))
+    
+    for mp in parsed_media_plans:
+        for r in mp.rows:
+            row_dict = {
+                'Msch_Clientname': mp.client_name,
+                'Msch_Brandname': mp.brand_name,
+                'Msch_Tvchannelname': r.channel,
+                'Msch_Programmename': r.programme,
+                'Msch_Days': r.days,
+                'Msch_Timeband': r.time_band,
+                'Msch_Pt/Nonpt': r.pt_npt,
+                'Msch_Netrate': r.net_rate,
+                'Msch_Caption': r.caption,
+            }
+            # Fill in spots for dates
+            for d in sorted_dates:
+                val = r.spots_by_date.get(d, 0)
+                date_str = d.strftime('%d-%b')
+                row_dict[date_str] = val if val > 0 else 0
+                
+            rows.append(row_dict)
+            
+    if not rows:
+        return pd.DataFrame()
+        
+    df = pd.DataFrame(rows)
     return df
 
 
@@ -615,11 +679,53 @@ def export_to_excel(dfs: Dict[str, pd.DataFrame], output_path: str) -> str:
             ws = writer.sheets[sheet_name]
             _style_header(ws, len(df_po.columns), '2E86C1') # Blue color
             _style_data(ws, len(df_po), len(df_po.columns))
-            # Optional: _add_total_row(ws, df_po, len(df_po.columns))
             _format_numbers(ws, df_po)
             _auto_width(ws, df_po)
             _freeze_filter(ws, df_po)
             ws.sheet_properties.tabColor = '2E86C1'
+            ws.sheet_view.showGridLines  = False
+            sheets_written += 1
+
+        # Media Schedule Details sheet
+        df_mp = dfs.get('media_plan', pd.DataFrame())
+        if df_mp is not None and len(df_mp) > 0:
+            sheet_name = 'Media Schedule Details'
+            # We will start writing data from row 2 so we can put our custom grouping row on row 1
+            df_mp.to_excel(writer, sheet_name=sheet_name, index=False, startrow=1)
+            ws = writer.sheets[sheet_name]
+            
+            from openpyxl.styles import PatternFill, Font, Alignment
+            from openpyxl.utils import get_column_letter
+            header_fill = PatternFill(start_color='1F618D', end_color='1F618D', fill_type='solid') # Dark Blue
+            header_font = Font(name='Segoe UI', size=10, bold=True, color='FFFFFF')
+            align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            
+            # Find where date columns start
+            fixed_cols = 9 # 'Msch_Clientname' up to 'Msch_Caption'
+            
+            # Write row 1 custom grouping
+            ws.merge_cells(start_row=1, start_column=fixed_cols+1, end_row=1, end_column=len(df_mp.columns))
+            group_cell = ws.cell(row=1, column=fixed_cols+1)
+            group_cell.value = "Msch_number of spots"
+            group_cell.fill = header_fill
+            group_cell.font = header_font
+            group_cell.alignment = align
+            
+            # Style both row 1 and row 2 (headers)
+            for r in [1, 2]:
+                for col in range(1, len(df_mp.columns) + 1):
+                    cell = ws.cell(row=r, column=col)
+                    if cell.value: # Skip styling empty merged cells but style them if they are part of a border
+                        pass
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = align
+                    
+            _style_data(ws, len(df_mp), len(df_mp.columns), start_row=3)
+            _format_numbers(ws, df_mp, start_row=3)
+            _auto_width(ws, df_mp)
+            _freeze_filter(ws, df_mp, header_row=2)
+            ws.sheet_properties.tabColor = '1F618D'
             ws.sheet_view.showGridLines  = False
             sheets_written += 1
 

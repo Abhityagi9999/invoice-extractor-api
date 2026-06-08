@@ -15,6 +15,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 from pdf_parser import parse_invoice
 from broadcaster_router import parse_broadcaster_invoice, is_broadcaster_invoice
 from po_parser import parse_po_invoice, is_po_invoice
+from media_plan_parser import parse_media_plan, is_media_plan
 from data_processor import (
     process_multiple_invoices,
     export_to_excel,
@@ -23,6 +24,7 @@ from data_processor import (
     spots_to_dicts,
     build_broadcaster_data,
     build_po_data,
+    build_media_plan_data,
     broadcaster_to_summary_dict,
     broadcaster_spots_to_dicts,
     build_invoice_summary_sheet,
@@ -122,6 +124,7 @@ def _process_pdfs_background(task_id, pdf_paths):
     parsed_agency       = []
     parsed_broadcaster  = []
     parsed_po           = []
+    parsed_media_plan   = []
     file_statuses       = []
 
     try:
@@ -149,7 +152,27 @@ def _process_pdfs_background(task_id, pdf_paths):
                          files=done + file_statuses[-1:] + rest)
 
             try:
-                # Auto-detect invoice type
+                # First check for Excel files
+                is_mp = is_media_plan(pdf_path)
+                
+                if is_mp:
+                    result = parse_media_plan(pdf_path)
+                    if not result:
+                        raise ValueError("Unknown Media Plan format or parsing error")
+                    parsed_media_plan.append(result)
+                    file_statuses[-1] = {
+                        'name':   filename,
+                        'status': 'done',
+                        'spots':  len(result.rows),
+                        'type':   'Media Plan',
+                    }
+                    logger.info('Parsed Media Plan %s → %d rows', filename, len(result.rows))
+                    continue
+                elif str(pdf_path).lower().endswith(('.xlsx', '.xls')):
+                    # It's an Excel file but not a recognized Media Plan, skip safely
+                    raise ValueError("Excel file is not a recognized Media Plan")
+
+                # Auto-detect invoice type for PDFs
                 is_bc = is_broadcaster_invoice(pdf_path)
                 is_po = False if is_bc else is_po_invoice(pdf_path)
 
@@ -195,9 +218,9 @@ def _process_pdfs_background(task_id, pdf_paths):
                 file_statuses[-1] = {'name': filename, 'status': 'error', 'error': str(exc)}
                 logger.error('Error parsing %s: %s', filename, exc)
 
-        if not parsed_agency and not parsed_broadcaster and not parsed_po:
+        if not parsed_agency and not parsed_broadcaster and not parsed_po and not parsed_media_plan:
             _update_task(task_id, status='error',
-                         error='Could not parse any PDF files.')
+                         error='Could not parse any files.')
             return
 
         # Build DataFrames for both types
@@ -221,6 +244,10 @@ def _process_pdfs_background(task_id, pdf_paths):
         # PO data
         if parsed_po:
             dfs['po'] = build_po_data(parsed_po)
+
+        # Media Plan data
+        if parsed_media_plan:
+            dfs['media_plan'] = build_media_plan_data(parsed_media_plan)
 
         # Export combined Excel
         timestamp      = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -286,7 +313,7 @@ def upload_files():
 
         saved_paths = []
         for f in files:
-            if f.filename and f.filename.lower().endswith('.pdf'):
+            if f.filename and f.filename.lower().endswith(('.pdf', '.xlsx', '.xls')):
                 fname = os.path.basename(f.filename)
                 if fname.startswith('~$'):
                     logger.info('Skipping temporary owner file: %s', f.filename)
@@ -297,7 +324,7 @@ def upload_files():
                 saved_paths.append(path)
 
         if not saved_paths:
-            return jsonify({'error': 'No valid PDF files found'}), 400
+            return jsonify({'error': 'No valid PDF or Excel files found'}), 400
 
         # Start background task
         task_id = _new_task()
@@ -325,11 +352,11 @@ def process_folder():
         if not os.path.isdir(folder_path):
             return jsonify({'error': 'Folder not found: ' + folder_path}), 400
 
-        # Use recursive glob so we can find PDFs in subfolders (e.g. Broadcaster_Invoices_Organized)
-        pdf_paths = sorted(glob.glob(os.path.join(folder_path, '**', '*.pdf'), recursive=True))
-        pdf_paths = [p for p in pdf_paths if not os.path.basename(p).startswith('~$')]
+        # Use recursive glob so we can find PDFs and Excel files in subfolders
+        pdf_paths = sorted(glob.glob(os.path.join(folder_path, '**', '*.*'), recursive=True))
+        pdf_paths = [p for p in pdf_paths if str(p).lower().endswith(('.pdf', '.xlsx', '.xls')) and not os.path.basename(p).startswith('~$')]
         if not pdf_paths:
-            return jsonify({'error': 'No PDF files found in: ' + folder_path}), 400
+            return jsonify({'error': 'No PDF or Excel files found in: ' + folder_path}), 400
 
         logger.info('Folder "%s"  →  %d PDFs', folder_path, len(pdf_paths))
 
