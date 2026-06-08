@@ -79,11 +79,12 @@
             uploadArea.classList.remove('drag-over');
 
             const files = Array.from(e.dataTransfer.files).filter(
-                f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+                f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf') ||
+                     f.name.toLowerCase().endsWith('.xlsx') || f.name.toLowerCase().endsWith('.xls')
             );
 
             if (files.length === 0) {
-                showToast('Please drop PDF files only.', 'error');
+                showToast('Please drop PDF or Excel files only.', 'error');
                 return;
             }
 
@@ -126,8 +127,11 @@
             const li = document.createElement('li');
             li.className = 'selected-file-item';
             li.style.animationDelay = `${idx * 0.05}s`;
+            const isExcel = file.name.toLowerCase().match(/\.(xlsx|xls)$/);
+            const iconClass = isExcel ? "fas fa-file-excel" : "fas fa-file-pdf";
+            
             li.innerHTML = `
-                <i class="fas fa-file-pdf"></i>
+                <i class="${iconClass}"></i>
                 <span>${escapeHtml(file.name)}</span>
                 <span class="file-size">${formatFileSize(file.size)}</span>
             `;

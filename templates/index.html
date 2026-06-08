@@ -45,15 +45,15 @@
         <!-- Upload Files Tab -->
         <section id="upload-tab" class="tab-content active">
             <div id="upload-area" class="upload-area">
-                <input type="file" id="file-input" multiple accept=".pdf" hidden>
+                <input type="file" id="file-input" multiple accept=".pdf,.xlsx,.xls" hidden>
                 <div class="upload-icon-wrapper">
                     <div class="upload-icon-ring"></div>
                     <i class="fas fa-cloud-upload-alt upload-icon"></i>
                 </div>
-                <h3 class="upload-title">Drag & drop PDF invoices here</h3>
+                <h3 class="upload-title">Drag & drop PDF & Excel files here</h3>
                 <p class="upload-subtitle">or click to browse</p>
                 <div class="upload-formats">
-                    <span class="format-badge"><i class="fas fa-file-pdf"></i> PDF</span>
+                    <span class="format-badge"><i class="fas fa-file-pdf"></i> PDF & Excel</span>
                     <span class="format-badge"><i class="fas fa-layer-group"></i> Multiple files</span>
                 </div>
             </div>
@@ -80,7 +80,7 @@
                     <div class="input-wrapper">
                         <i class="fas fa-folder input-icon"></i>
                         <input type="text" id="folder-input" class="folder-input" 
-                               placeholder="Enter folder path containing PDF invoices..."
+                               placeholder="Enter folder path containing PDF or Excel files..."
                                value="C:\Users\asus\Downloads\Sustenance_Redmi_Note_13_May24\Sustenance_Redmi_Note_13_May24\Agency Invoices">
                     </div>
                     <button id="process-folder-btn" class="btn btn-primary" onclick="processFolder()">
@@ -91,7 +91,7 @@
                 </div>
                 <div class="folder-hint">
                     <i class="fas fa-info-circle"></i>
-                    <span>All PDF files in the specified folder will be processed automatically</span>
+                    <span>All PDF and Excel files in the specified folder will be processed automatically</span>
                 </div>
             </div>
         </section>
